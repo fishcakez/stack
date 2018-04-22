@@ -1,5 +1,5 @@
 defmodule Stack.Deadline do
-  alias Stack.{Context, Deadline}
+  alias Stack.{Context, Deadline, Filter}
 
   @time_unit :nanosecond
 
@@ -71,6 +71,9 @@ defmodule Stack.Deadline do
     |> max(0)
   end
 
-  @spec filter(non_neg_integer) :: (req, (req -> rep) -> rep) when req: var, rep: var
-  def filter(timeout), do: &bind(timeout, &2, [&1])
+  @spec filter(non_neg_integer) :: Filter.t(req, rep, req, rep) when req: var, rep: var
+  def filter(timeout) do
+    Filter.new()
+    |> Filter.into(&bind(timeout, &2, [&1]))
+  end
 end

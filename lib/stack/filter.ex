@@ -16,6 +16,13 @@ defmodule Stack.Filter do
     %Filter{f | stack: [transformer | stack]}
   end
 
+  @spec into(t(req_in, rep_out, req_out, rep_in), t(req_out, rep_in, req, rep)) ::
+          t(req_in, rep_out, req, rep)
+        when req_in: var, rep_out: var, req_out: var, rep_in: var, rep: var, req: var
+  def into(%Filter{stack: stack1} = f, %Filter{stack: stack2}) do
+    %Filter{f | stack: stack2 ++ stack1}
+  end
+
   @spec into(t(req_in, rep_out, req_out, rep_in), Service.t(req_out, rep_in)) ::
           Service.t(req_in, rep_out)
         when req_in: var, rep_out: var, req_out: var, rep_in: var

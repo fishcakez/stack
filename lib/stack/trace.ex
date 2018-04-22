@@ -1,5 +1,5 @@
 defmodule Stack.Trace do
-  alias Stack.{Context, Trace}
+  alias Stack.{Context, Filter, Trace}
   use Bitwise
 
   @uint128_max (1 <<< 128) - 1
@@ -77,11 +77,17 @@ defmodule Stack.Trace do
     |> bind(fun, args)
   end
 
-  @spec filter() :: (req, (req -> rep) -> rep) when req: var, rep: var
-  def filter(), do: &span(&2, [&1])
+  @spec filter() :: Filter.t(req, rep, req, rep) when req: var, rep: var
+  def filter() do
+    Filter.new()
+    |> Filter.into(&span(&2, [&1]))
+  end
 
-  @spec filter([flag]) :: (req, (req -> rep) -> rep) when req: var, rep: var
-  def filter(flags), do: &span(flags, &2, [&1])
+  @spec filter([flag]) :: Filter.t(req, rep, req, rep) when req: var, rep: var
+  def filter(flags) do
+    Filter.new()
+    |> Filter.into(&span(flags, &2, [&1]))
+  end
 
   ## Helpers
 
