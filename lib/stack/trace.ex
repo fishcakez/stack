@@ -77,11 +77,11 @@ defmodule Stack.Trace do
     |> bind(fun, args)
   end
 
-  @spec into() :: (req, (req -> rep) -> rep) when req: var, rep: var
-  def into(), do: &span(&2, [&1])
+  @spec filter() :: (req, (req -> rep) -> rep) when req: var, rep: var
+  def filter(), do: &span(&2, [&1])
 
-  @spec into([flag]) :: (req, (req -> rep) -> rep) when req: var, rep: var
-  def into(flags), do: &span(flags, &2, [&1])
+  @spec filter([flag]) :: (req, (req -> rep) -> rep) when req: var, rep: var
+  def filter(flags), do: &span(flags, &2, [&1])
 
   ## Helpers
 

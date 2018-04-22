@@ -13,9 +13,9 @@ base_service =
 
 service =
   Filter.new()
-  |> Filter.into(Trace.into())
-  |> Filter.into(Deadline.into(1000))
-  |> Filter.into(Retry.into(3))
+  |> Filter.into(Trace.filter())
+  |> Filter.into(Deadline.filter(1000))
+  |> Filter.into(Retry.filter(3))
   |> Filter.into(base_service)
   |> Service.ensure(&log_request/0)
 ```

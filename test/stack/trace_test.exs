@@ -38,7 +38,7 @@ defmodule Stack.TraceTest do
 
     service2 =
       Filter.new()
-      |> Filter.into(Trace.into([:debug]))
+      |> Filter.into(Trace.filter([:debug]))
       |> Filter.into(service1)
 
     assert {2, %Trace{flags: flags}} = Service.call(service2, 1)
@@ -53,7 +53,7 @@ defmodule Stack.TraceTest do
 
     service2 =
       Filter.new()
-      |> Filter.into(Trace.into())
+      |> Filter.into(Trace.filter())
       |> Filter.into(service1)
 
     Trace.bind(1, 2, 3, [], fn ->

@@ -71,6 +71,6 @@ defmodule Stack.Deadline do
     |> max(0)
   end
 
-  @spec into(non_neg_integer) :: (req, (req -> rep) -> rep) when req: var, rep: var
-  def into(timeout), do: &bind(timeout, &2, [&1])
+  @spec filter(non_neg_integer) :: (req, (req -> rep) -> rep) when req: var, rep: var
+  def filter(timeout), do: &bind(timeout, &2, [&1])
 end
