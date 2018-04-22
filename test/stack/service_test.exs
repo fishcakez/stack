@@ -48,6 +48,17 @@ defmodule Stack.ServiceTest do
     assert {:error, %RuntimeError{}, [{ServiceTest, _, _, _} | _]} = Service.call(service, 1)
   end
 
+  test "each runs fun without changing request" do
+    service =
+      Service.new()
+      |> Service.map(fn n -> n + 1 end)
+      |> Service.each(fn n -> send(self(), {:ran, n}) end)
+      |> Service.map(fn n -> n * 2 end)
+
+    assert Service.call(service, 1) == 4
+    assert_received {:ran, 2}
+  end
+
   test "merge runs first service and then second" do
     service1 =
       Service.new()

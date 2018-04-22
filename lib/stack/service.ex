@@ -39,6 +39,11 @@ defmodule Stack.Service do
     %Service{s | stack: [{:handle_stacktrace, handler} | stack]}
   end
 
+  @spec each(t(req, rep), (req -> any)) :: t(req, rep) when req: var, rep: var
+  def each(%Service{stack: stack} = s, runner) when is_function(runner, 1) do
+    %Service{s | stack: [{:each, runner} | stack]}
+  end
+
   @spec merge(t(req, rep), t(rep, res)) :: t(req, res) when req: var, rep: var, res: var
   def merge(%Service{stack: stack1} = s, %Service{stack: stack2}) do
     %Service{s | stack: stack2 ++ stack1}
@@ -112,6 +117,12 @@ defmodule Stack.Service do
       stack = System.stacktrace()
       error = Exception.normalize(:error, err, stack)
       handler.(error, stack)
+  end
+
+  defp eval([{:each, runner} | stack], req) do
+    resp = eval(stack, req)
+    _ = runner.(resp)
+    resp
   end
 
   defp eval([{:ensure, ensurer} | stack], req) do
