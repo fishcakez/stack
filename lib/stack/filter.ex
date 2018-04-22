@@ -27,6 +27,6 @@ defmodule Stack.Filter do
           Service.t(req_in, rep_out)
         when req_in: var, rep_out: var, req_out: var, rep_in: var
   def into(%Filter{stack: stack}, %Service{} = s) do
-    Enum.reduce(stack, s, &Service.wrap(&2, &1))
+    Enum.reduce(stack, s, &Service.into(&2, &1))
   end
 end
