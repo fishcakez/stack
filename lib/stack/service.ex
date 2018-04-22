@@ -61,9 +61,9 @@ defmodule Stack.Service do
     %Service{s | stack: [{:ensure, ensurer} | stack]}
   end
 
-  @spec into(t(req, rep), (req2, (req -> rep) -> rep2)) :: t(req2, rep2)
+  @spec wrap(t(req, rep), (req2, (req -> rep) -> rep2)) :: t(req2, rep2)
         when req: var, rep: var, req2: var, rep2: var
-  def into(%Service{stack: stack} = s, transformer) when is_function(transformer, 2) do
+  def wrap(%Service{stack: stack} = s, transformer) when is_function(transformer, 2) do
     %Service{s | stack: [{:into, transformer} | stack]}
   end
 
