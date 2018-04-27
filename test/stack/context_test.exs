@@ -2,6 +2,8 @@ defmodule Stack.ContextTest do
   alias Stack.{Context, ContextTest}
   use ExUnit.Case, async: true
 
+  doctest Stack.Context
+
   test "bind value sets value" do
     Context.bind(ContextTest, 1, fn ->
       assert Context.get() == %{ContextTest => 1}

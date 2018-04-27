@@ -39,7 +39,7 @@ defmodule Stack.DeadlineTest do
       |> Filter.into(Deadline.filter(1000))
       |> Filter.into(service1)
 
-    assert {2, timeout} = Service.call(service2, 1)
+    assert {2, timeout} = Service.init(service2).(1)
     assert timeout <= 1000
   end
 end

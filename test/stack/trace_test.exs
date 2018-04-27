@@ -41,7 +41,7 @@ defmodule Stack.TraceTest do
       |> Filter.into(Trace.filter([:debug]))
       |> Filter.into(service1)
 
-    assert {2, %Trace{flags: flags}} = Service.call(service2, 1)
+    assert {2, %Trace{flags: flags}} = Service.init(service2).(1)
     assert Enum.member?(flags, :root)
     assert Enum.member?(flags, :debug)
   end
@@ -57,7 +57,7 @@ defmodule Stack.TraceTest do
       |> Filter.into(service1)
 
     Trace.bind(1, 2, 3, [], fn ->
-      assert {2, trace} = Service.call(service2, 1)
+      assert {2, trace} = Service.init(service2).(1)
       assert %Trace{trace_id: 1, parent_id: 3, span_id: span_id, flags: []} = trace
       assert span_id !== 3
     end)
