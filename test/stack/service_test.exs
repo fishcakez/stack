@@ -6,26 +6,26 @@ defmodule Stack.ServiceTest do
     service =
       Service.new()
       |> Service.map(fn n -> n + 1 end)
-      |> Service.map(fn n -> n * 2 end, fn _ -> :error end)
+      |> Service.map(fn n -> n * 2 end)
 
     assert Service.init(service).(1) == 4
     assert Service.init(service).(3) == 8
   end
 
-  test "map rescues exception" do
+  test "transform rescues exception" do
     service =
       Service.new()
       |> Service.map(fn _ -> raise RuntimeError end)
-      |> Service.map(fn n -> n + 1 end, fn err -> {:error, err} end)
+      |> Service.transform(fn n -> n + 1 end, fn err -> {:error, err} end)
 
     assert {:error, %RuntimeError{}} = Service.init(service).(1)
   end
 
-  test "map rescues exception with stacktrace" do
+  test "transform rescues exception with stacktrace" do
     service =
       Service.new()
       |> Service.map(fn _ -> raise RuntimeError end)
-      |> Service.map(fn n -> n + 1 end, fn err, stack -> {:error, err, stack} end)
+      |> Service.transform(fn n -> n + 1 end, fn err, stack -> {:error, err, stack} end)
 
     assert {:error, %RuntimeError{}, [{ServiceTest, _, _, _} | _]} = Service.init(service).(1)
   end

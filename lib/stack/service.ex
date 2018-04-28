@@ -55,32 +55,32 @@ defmodule Stack.Service do
   end
 
   @doc """
-  Extends the service to map the current reply to a new result.
+  Extends the service to transform the current reply or exception to a new result.
 
   If an exception is raised at the same point in the stack maps the exception to a new
   result instead. However if this map, or a function added later in the stack raises
   it won't be rescued.
   """
-  @spec map(t(req, rep), (rep -> res), (Exception.t() -> res)) :: t(req, res)
+  @spec transform(t(req, rep), (rep -> res), (Exception.t() -> res)) :: t(req, res)
         when req: var, rep: var, res: var
-  def map(%Service{stack: stack} = s, mapper, handler)
+  def transform(%Service{stack: stack} = s, mapper, handler)
       when is_function(mapper, 1) and is_function(handler, 1) do
-    %Service{s | stack: [{:map, mapper, handler} | stack]}
+    %Service{s | stack: [{:transform, mapper, handler} | stack]}
   end
 
   @doc """
-  Extends the service to map the current reply to a new result.
+  Extends the service to transform the current reply or exception to a new result.
 
   If an exception is raised before this point in the stack, maps the exception to a new
   result instead. However if this map, or a function added later in the stack raises
   it won't be rescued.
   """
-  @spec map(t(req, rep), (rep -> res), (Exception.t(), Exception.stacktrace() -> res)) ::
+  @spec transform(t(req, rep), (rep -> res), (Exception.t(), Exception.stacktrace() -> res)) ::
           t(req, res)
         when req: var, rep: var, res: var
-  def map(%Service{stack: stack} = s, mapper, handler)
+  def transform(%Service{stack: stack} = s, mapper, handler)
       when is_function(mapper, 1) and is_function(handler, 2) do
-    %Service{s | stack: [{:map_stacktrace, mapper, handler} | stack]}
+    %Service{s | stack: [{:transform_stacktrace, mapper, handler} | stack]}
   end
 
   @doc """
@@ -107,7 +107,6 @@ defmodule Stack.Service do
   def each(%Service{stack: stack} = s, runner) when is_function(runner, 1) do
     %Service{s | stack: [{:each, runner} | stack]}
   end
-
 
   @doc """
   Ensure a function is always run at the current point in the stack.
@@ -138,7 +137,7 @@ defmodule Stack.Service do
   defp eval([{:into, transformer} | stack], req), do: transformer.(req, &eval(stack, &1))
   defp eval([{:map, mapper} | stack], req), do: mapper.(eval(stack, req))
 
-  defp eval([{:map, mapper, handler} | stack], req) do
+  defp eval([{:transform, mapper, handler} | stack], req) do
     eval(stack, req)
   rescue
     error ->
@@ -148,7 +147,7 @@ defmodule Stack.Service do
       mapper.(res)
   end
 
-  defp eval([{:map_stacktrace, mapper, handler} | stack], req) do
+  defp eval([{:transform_stacktrace, mapper, handler} | stack], req) do
     eval(stack, req)
   catch
     :error, err ->
