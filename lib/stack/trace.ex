@@ -6,6 +6,7 @@ defmodule Stack.Trace do
   """
   alias Stack.{Context, Filter, Trace}
   use Bitwise
+  @behaviour Filter
 
   @uint128_max (1 <<< 128) - 1
   @uint64_max (1 <<< 64) - 1
@@ -105,7 +106,7 @@ defmodule Stack.Trace do
   """
   @spec filter() :: Filter.t(req, rep, req, rep) when req: var, rep: var
   def filter() do
-    Filter.new(fn req, service -> span(fn -> service.(req) end) end)
+    Filter.new(Trace, :child)
   end
 
   @doc """
@@ -118,7 +119,21 @@ defmodule Stack.Trace do
   """
   @spec filter([flag]) :: Filter.t(req, rep, req, rep) when req: var, rep: var
   def filter(flags) when is_list(flags) do
-    Filter.new(fn req, service -> span(flags, fn -> service.(req) end) end)
+    Filter.new(Trace, {:parent, flags})
+  end
+
+  @doc false
+  @impl Filter
+  def init(arg), do: arg
+
+  @doc false
+  @impl Filter
+  def call(req, service, :child) do
+    span(fn -> service.(req) end)
+  end
+
+  def call(req, service, {:parent, flags}) do
+    span(flags, fn -> service.(req) end)
   end
 
   ## Helpers

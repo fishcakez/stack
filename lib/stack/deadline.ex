@@ -6,6 +6,7 @@ defmodule Stack.Deadline do
   the current scope takes priority when using a context.
   """
   alias Stack.{Context, Deadline, Filter}
+  @behaviour Filter
 
   @time_unit :nanosecond
 
@@ -140,6 +141,16 @@ defmodule Stack.Deadline do
   """
   @spec filter(non_neg_integer) :: Filter.t(req, rep, req, rep) when req: var, rep: var
   def filter(timeout) when is_integer(timeout) and timeout >= 0 do
-    Filter.new(fn req, service -> bind(timeout, fn -> service.(req) end) end)
+    Filter.new(Deadline, timeout)
+  end
+
+  @doc false
+  @impl Filter
+  def init(timeout), do: timeout
+
+  @doc false
+  @impl Filter
+  def call(req, service, timeout) do
+    bind(timeout, fn -> service.(req) end)
   end
 end
