@@ -16,6 +16,28 @@ defmodule Stack.FilterTest do
     assert Service.init(service2).(5) == 8
   end
 
+  test "into with callback module filter places inside call" do
+    defmodule TestFilter do
+      @behaviour Filter
+
+      @impl Filter
+      def init(n), do: n + 1
+
+      @impl Filter
+      def call(n, service, m), do: service.(n * m)
+    end
+
+    service1 =
+      Service.new()
+      |> Service.map(fn n -> n + 1 end)
+
+    service2 =
+      Filter.new(TestFilter, 1)
+      |> Filter.into(service1)
+
+    assert Service.init(service2).(3) == 7
+  end
+
   test "init creates fun replicated filter" do
     service =
       Service.new()

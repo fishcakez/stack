@@ -6,9 +6,6 @@ defmodule Stack.Service do
   output reply. A fun that maps the request to the reply is created with `init/1`.
   When building the service stack, the request can not be changed but the response
   can be unless the service is wrapped with `into/2` or by a `Filter.t`.
-
-  Only fun's are supported so that the service can be typed when built, and dialyzer can
-  analyze the composition with success typing.
   """
   alias Stack.Service
 
@@ -21,6 +18,9 @@ defmodule Stack.Service do
   The second parameter is reply, our output, to the service.
   """
   @opaque t(_req, _rep) :: %Service{}
+
+  @callback init(args) :: state when args: term, state: term
+  @callback call(_req, state) :: _rep when _req: var, state: term, _rep: var
 
   @doc """
   Create a new (identity) service.
@@ -36,6 +36,17 @@ defmodule Stack.Service do
   @spec new((req -> rep)) :: t(req, rep) when req: var, rep: var
   def new(mapper) when is_function(mapper, 1) do
     %Service{stack: [{:map, mapper}]}
+  end
+
+  @doc """
+  Create a new service with a callback module and args.
+
+  The service calls the callback module with the input and returns the output.
+  """
+  @spec new(module, args) :: t(_req, _rep) when args: term, _req: var, _rep: var
+  def new(module, args) when is_atom(module) do
+    state = module.init(args)
+    %Service{stack: [{:map_callback, module, state}]}
   end
 
   @doc """
@@ -136,6 +147,16 @@ defmodule Stack.Service do
   defp eval([], req), do: req
   defp eval([{:into, transformer} | stack], req), do: transformer.(req, &eval(stack, &1))
   defp eval([{:map, mapper} | stack], req), do: mapper.(eval(stack, req))
+
+  defp eval([{:into_callback, module, state} | stack], req) do
+    module.call(req, &eval(stack, &1), state)
+  end
+
+  defp eval([{:map_callback, module, state} | stack], req) do
+    stack
+    |> eval(req)
+    |> module.call(state)
+  end
 
   defp eval([{:transform, mapper, handler} | stack], req) do
     eval(stack, req)

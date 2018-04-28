@@ -12,6 +12,22 @@ defmodule Stack.ServiceTest do
     assert Service.init(service).(3) == 8
   end
 
+  test "callback module transforms values" do
+    defmodule TestService do
+      @behaviour Service
+
+      @impl Service
+      def init(n), do: n + 1
+
+      @impl Service
+      def call(n, m), do: n * m
+    end
+
+    service = Service.new(TestService, 1)
+    assert Service.init(service).(1) == 2
+    assert Service.init(service).(3) == 6
+  end
+
   test "transform rescues exception" do
     service =
       Service.new()

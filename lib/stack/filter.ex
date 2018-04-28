@@ -6,9 +6,6 @@ defmodule Stack.Filter do
   output response. Filters are composed until they wrap a service, which is the source
   for the fun. Once a service is wrapped the filter is transformed into a service with
   the same input and output as the filter.
-
-  Only fun's are supported so that the filter can be typed when built, and dialyzer can
-  analyze the composition with success typing.
   """
   alias Stack.{Service, Filter}
 
@@ -26,6 +23,10 @@ defmodule Stack.Filter do
   """
   @opaque t(_req_in, _rep_out, _req_out, _rep_in) :: %Filter{}
 
+  @callback init(args) :: state when args: term, state: term
+  @callback call(_req_in, (_req_out -> _rep_in), state) :: _rep_out
+            when _req_in: var, _req_out: var, _rep_in: var, state: term, _rep_out: var
+
   @doc """
   Create a new (identity) filter.
   """
@@ -38,10 +39,23 @@ defmodule Stack.Filter do
   The filter will call the fun with the input and wrapped service's fun, and
   returns the output.
   """
-  @spec new((req_in, (req_out -> rep_in) -> rep_out)) :: t(req_out, rep_in, req_in, rep_out)
+  @spec new((req_in, (req_out -> rep_in) -> rep_out)) :: t(req_in, rep_out, req_out, rep_in)
         when req_in: var, req_out: var, rep_in: var, rep_out: var
   def new(transformer) when is_function(transformer, 2) do
-    %Filter{stack: [transformer]}
+    %Filter{stack: [{:into, transformer}]}
+  end
+
+  @doc """
+  Create a new filter with a callback module.
+
+  The filter will call the callback module with the input and wrapped service's fun, and
+  returns the output.
+  """
+  @spec new(module, args) :: t(_req_in, _rep_out, _req_out, _rep_in)
+        when args: term, _req_in: var, _req_out: var, _rep_in: var, _rep_out: var
+  def new(module, args) when is_atom(module) do
+    state = module.init(args)
+    %Filter{stack: [{:into_callback, module, state}]}
   end
 
   @doc """
@@ -59,7 +73,7 @@ defmodule Stack.Filter do
           t(req_in, rep_out, req, rep)
         when req_in: var, rep_out: var, req_out: var, rep_in: var, req: var, rep: var
   def into(%Filter{stack: stack} = f, transformer) when is_function(transformer, 2) do
-    %Filter{f | stack: [transformer | stack]}
+    %Filter{f | stack: [{:into, transformer} | stack]}
   end
 
   @spec into(t(req_in, rep_out, req_out, rep_in), t(req_out, rep_in, req, rep)) ::
@@ -72,8 +86,8 @@ defmodule Stack.Filter do
   @spec into(t(req_in, rep_out, req_out, rep_in), Service.t(req_out, rep_in)) ::
           Service.t(req_in, rep_out)
         when req_in: var, rep_out: var, req_out: var, rep_in: var
-  def into(%Filter{stack: stack}, %Service{} = s) do
-    Enum.reduce(stack, s, &Service.into(&2, &1))
+  def into(%Filter{stack: stack1}, %Service{stack: stack2} = s) do
+    %Service{s | stack: Enum.reverse(stack1, stack2)}
   end
 
   @doc """
@@ -86,6 +100,13 @@ defmodule Stack.Filter do
     &eval(reverse_stack, &1, &2)
   end
 
-  defp eval([transformer | stack], req, service), do: transformer.(req, &eval(stack, &1, service))
+  defp eval([{:into, transformer} | stack], req, service) do
+    transformer.(req, &eval(stack, &1, service))
+  end
+
+  defp eval([{:into_callback, module, state} | stack], req, service) do
+    module.call(req, &eval(stack, &1, service), state)
+  end
+
   defp eval([], req, service), do: service.(req)
 end
