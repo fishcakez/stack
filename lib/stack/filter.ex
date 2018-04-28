@@ -55,7 +55,7 @@ defmodule Stack.Filter do
         when args: term, _req_in: var, _req_out: var, _rep_in: var, _rep_out: var
   def new(module, args) when is_atom(module) do
     state = module.init(args)
-    %Filter{stack: [{:into_callback, module, state}]}
+    %Filter{stack: [{:into, module, state}]}
   end
 
   @doc """
@@ -91,6 +91,51 @@ defmodule Stack.Filter do
   end
 
   @doc """
+  Transform the result returned, or exception raised, by the wrapped service.
+  """
+  @spec transform((res -> rep), (req, Exception.t(), Exception.stacktrace() -> rep)) ::
+          t(req, rep, req, res)
+        when req: var, rep: var, res: var
+  def transform(mapper, handler) when is_function(mapper, 1) and is_function(handler, 3) do
+    Filter.new(fn req, service ->
+      try do
+        service.(req)
+      catch
+        :error, error ->
+          stack = System.stacktrace()
+          exception = Exception.normalize(:error, error, stack)
+          handler.(req, exception, stack)
+      else
+        res ->
+          mapper.(res)
+      end
+    end)
+  end
+
+  @doc """
+  Handle an exception raised by the wrapped service.
+  """
+  @spec handle((req, Exception.t(), Exception.stacktrace() -> rep)) :: t(req, rep, req, rep)
+        when req: var, rep: var
+  def handle(handler) when is_function(handler, 3) do
+    transform(fn res -> res end, handler)
+  end
+
+  @doc """
+  Create a new filter that ensures a fun is always run after the wrapped service.
+  """
+  @spec ensure((req -> res)) :: t(req, rep, req, rep) when req: var, res: term, rep: var
+  def ensure(ensurer) when is_function(ensurer, 1) do
+    Filter.new(fn req, service ->
+      try do
+        service.(req)
+      after
+        _ = ensurer.(req)
+      end
+    end)
+  end
+
+  @doc """
   Create an anonymous function that transforms the input to output by applying an anonymous function.
   """
   @spec init(t(req_in, rep_out, req_out, rep_in)) :: (req_in, (req_out -> rep_in) -> rep_out)
@@ -104,7 +149,7 @@ defmodule Stack.Filter do
     transformer.(req, &eval(stack, &1, service))
   end
 
-  defp eval([{:into_callback, module, state} | stack], req, service) do
+  defp eval([{:into, module, state} | stack], req, service) do
     module.call(req, &eval(stack, &1, service), state)
   end
 

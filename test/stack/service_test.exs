@@ -1,5 +1,5 @@
 defmodule Stack.ServiceTest do
-  alias Stack.{Service, ServiceTest}
+  alias Stack.Service
   use ExUnit.Case
 
   test "map transforms values" do
@@ -28,42 +28,6 @@ defmodule Stack.ServiceTest do
     assert Service.init(service).(3) == 6
   end
 
-  test "transform rescues exception" do
-    service =
-      Service.new()
-      |> Service.map(fn _ -> raise RuntimeError end)
-      |> Service.transform(fn n -> n + 1 end, fn err -> {:error, err} end)
-
-    assert {:error, %RuntimeError{}} = Service.init(service).(1)
-  end
-
-  test "transform rescues exception with stacktrace" do
-    service =
-      Service.new()
-      |> Service.map(fn _ -> raise RuntimeError end)
-      |> Service.transform(fn n -> n + 1 end, fn err, stack -> {:error, err, stack} end)
-
-    assert {:error, %RuntimeError{}, [{ServiceTest, _, _, _} | _]} = Service.init(service).(1)
-  end
-
-  test "handle rescues exception" do
-    service =
-      Service.new()
-      |> Service.map(fn _ -> raise RuntimeError end)
-      |> Service.handle(fn err -> {:error, err} end)
-
-    assert {:error, %RuntimeError{}} = Service.init(service).(1)
-  end
-
-  test "handle rescues exception with stacktrace" do
-    service =
-      Service.new()
-      |> Service.map(fn _ -> raise RuntimeError end)
-      |> Service.handle(fn err, stack -> {:error, err, stack} end)
-
-    assert {:error, %RuntimeError{}, [{ServiceTest, _, _, _} | _]} = Service.init(service).(1)
-  end
-
   test "each runs fun without changing request" do
     service =
       Service.new()
@@ -81,17 +45,6 @@ defmodule Stack.ServiceTest do
     service = Service.map(service1, service2)
 
     assert Service.init(service).(1) == 4
-  end
-
-  test "ensure always runs" do
-    service =
-      Service.new()
-      |> Service.map(fn _ -> raise RuntimeError end)
-      |> Service.ensure(fn -> send(self(), :ensured) end)
-      |> Service.handle(fn err -> {:error, err} end)
-
-    assert {:error, %RuntimeError{}} = Service.init(service).(1)
-    assert_received :ensured
   end
 
   test "into places service inside a new service" do

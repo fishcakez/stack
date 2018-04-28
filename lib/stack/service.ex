@@ -46,7 +46,7 @@ defmodule Stack.Service do
   @spec new(module, args) :: t(_req, _rep) when args: term, _req: var, _rep: var
   def new(module, args) when is_atom(module) do
     state = module.init(args)
-    %Service{stack: [{:map_callback, module, state}]}
+    %Service{stack: [{:map, module, state}]}
   end
 
   @doc """
@@ -66,65 +66,14 @@ defmodule Stack.Service do
   end
 
   @doc """
-  Extends the service to transform the current reply or exception to a new result.
-
-  If an exception is raised at the same point in the stack maps the exception to a new
-  result instead. However if this map, or a function added later in the stack raises
-  it won't be rescued.
-  """
-  @spec transform(t(req, rep), (rep -> res), (Exception.t() -> res)) :: t(req, res)
-        when req: var, rep: var, res: var
-  def transform(%Service{stack: stack} = s, mapper, handler)
-      when is_function(mapper, 1) and is_function(handler, 1) do
-    %Service{s | stack: [{:transform, mapper, handler} | stack]}
-  end
-
-  @doc """
-  Extends the service to transform the current reply or exception to a new result.
-
-  If an exception is raised before this point in the stack, maps the exception to a new
-  result instead. However if this map, or a function added later in the stack raises
-  it won't be rescued.
-  """
-  @spec transform(t(req, rep), (rep -> res), (Exception.t(), Exception.stacktrace() -> res)) ::
-          t(req, res)
-        when req: var, rep: var, res: var
-  def transform(%Service{stack: stack} = s, mapper, handler)
-      when is_function(mapper, 1) and is_function(handler, 2) do
-    %Service{s | stack: [{:transform_stacktrace, mapper, handler} | stack]}
-  end
-
-  @doc """
-  Handle an exception raised before this point in the stack.
-  """
-  @spec handle(t(req, rep), (Exception.t() -> rep)) :: t(req, rep) when req: var, rep: var
-  def handle(%Service{stack: stack} = s, handler) when is_function(handler, 1) do
-    %Service{s | stack: [{:handle, handler} | stack]}
-  end
-
-  @doc """
-  Handle an exception raised before this point in the stack.
-  """
-  @spec handle(t(req, rep), (Exception.t(), Exception.stacktrace() -> rep)) :: t(req, rep)
-        when req: var, rep: var
-  def handle(%Service{stack: stack} = s, handler) when is_function(handler, 2) do
-    %Service{s | stack: [{:handle_stacktrace, handler} | stack]}
-  end
-
-  @doc """
   Extends the service to run a fun on the current reply, ignoring the result.
   """
   @spec each(t(req, rep), (req -> any)) :: t(req, rep) when req: var, rep: var
-  def each(%Service{stack: stack} = s, runner) when is_function(runner, 1) do
-    %Service{s | stack: [{:each, runner} | stack]}
-  end
-
-  @doc """
-  Ensure a function is always run at the current point in the stack.
-  """
-  @spec ensure(t(req, rep), (() -> any())) :: t(req, rep) when req: var, rep: var
-  def ensure(%Service{stack: stack} = s, ensurer) when is_function(ensurer, 0) do
-    %Service{s | stack: [{:ensure, ensurer} | stack]}
+  def each(%Service{} = s, runner) when is_function(runner, 1) do
+    map(s, fn rep ->
+      _ = runner.(rep)
+      rep
+    end)
   end
 
   @doc """
@@ -148,63 +97,13 @@ defmodule Stack.Service do
   defp eval([{:into, transformer} | stack], req), do: transformer.(req, &eval(stack, &1))
   defp eval([{:map, mapper} | stack], req), do: mapper.(eval(stack, req))
 
-  defp eval([{:into_callback, module, state} | stack], req) do
+  defp eval([{:into, module, state} | stack], req) do
     module.call(req, &eval(stack, &1), state)
   end
 
-  defp eval([{:map_callback, module, state} | stack], req) do
+  defp eval([{:map, module, state} | stack], req) do
     stack
     |> eval(req)
     |> module.call(state)
-  end
-
-  defp eval([{:transform, mapper, handler} | stack], req) do
-    eval(stack, req)
-  rescue
-    error ->
-      handler.(error)
-  else
-    res ->
-      mapper.(res)
-  end
-
-  defp eval([{:transform_stacktrace, mapper, handler} | stack], req) do
-    eval(stack, req)
-  catch
-    :error, err ->
-      stack = System.stacktrace()
-      error = Exception.normalize(:error, err, stack)
-      handler.(error, stack)
-  else
-    res ->
-      mapper.(res)
-  end
-
-  defp eval([{:handle, handler} | stack], req) do
-    eval(stack, req)
-  rescue
-    error ->
-      handler.(error)
-  end
-
-  defp eval([{:handle_stacktrace, handler} | stack], req) do
-    eval(stack, req)
-  catch
-    :error, err ->
-      stack = System.stacktrace()
-      error = Exception.normalize(:error, err, stack)
-      handler.(error, stack)
-  end
-
-  defp eval([{:each, runner} | stack], req) do
-    resp = eval(stack, req)
-    _ = runner.(resp)
-    resp
-  end
-
-  defp eval([{:ensure, ensurer} | stack], req) do
-    eval(stack, req)
-  after
-    _ = ensurer.()
   end
 end
