@@ -35,7 +35,7 @@ defmodule Stack.Service do
   """
   @spec new((req -> rep)) :: t(req, rep) when req: var, rep: var
   def new(mapper) when is_function(mapper, 1) do
-    %Service{stack: [mapper]}
+    %Service{stack: [{:map, mapper}]}
   end
 
   @doc """
