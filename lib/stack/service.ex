@@ -47,6 +47,14 @@ defmodule Stack.Service do
   end
 
   @doc """
+  Extends a service with another service so that the output of first is input to second.
+  """
+  @spec map(t(req, rep), t(rep, res)) :: t(req, res) when req: var, rep: var, res: var
+  def map(%Service{stack: stack1} = s, %Service{stack: stack2}) do
+    %Service{s | stack: stack2 ++ stack1}
+  end
+
+  @doc """
   Extends the service to map the current reply to a new result.
 
   If an exception is raised at the same point in the stack maps the exception to a new
@@ -100,23 +108,6 @@ defmodule Stack.Service do
     %Service{s | stack: [{:each, runner} | stack]}
   end
 
-  @doc """
-  Append two services so that output of first is input to second.
-  """
-  @spec append(t(req, rep), t(rep, res)) :: t(req, res) when req: var, rep: var, res: var
-  def append(%Service{stack: stack1} = s, %Service{stack: stack2}) do
-    %Service{s | stack: stack2 ++ stack1}
-  end
-
-  @doc """
-  Append two services where output of first is mapped to input of second.
-  """
-  @spec append(t(req, rep), t(res1, res2), (rep -> res1)) :: t(req, res2)
-        when req: var, rep: var, res1: var, res2: var
-  def append(%Service{stack: stack1} = s, %Service{stack: stack2}, mapper)
-      when is_function(mapper, 1) do
-    %Service{s | stack: stack2 ++ [{:map, mapper} | stack1]}
-  end
 
   @doc """
   Ensure a function is always run at the current point in the stack.

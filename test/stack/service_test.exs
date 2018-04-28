@@ -62,23 +62,9 @@ defmodule Stack.ServiceTest do
   test "append runs first service and then second" do
     service1 = Service.new(fn n -> n + 1 end)
     service2 = Service.new(fn n -> n * 2 end)
-    service = Service.append(service1, service2)
+    service = Service.map(service1, service2)
 
     assert Service.init(service).(1) == 4
-  end
-
-  test "append runs first service, maps value and then second" do
-    service1 =
-      Service.new()
-      |> Service.map(fn n -> n + 1 end)
-
-    service2 =
-      Service.new()
-      |> Service.map(fn n -> n * 3 end)
-
-    service = Service.append(service1, service2, fn n -> div(n, 2) end)
-
-    assert Service.init(service).(5) == 9
   end
 
   test "ensure always runs" do
