@@ -3,27 +3,27 @@ defmodule Stack.DeadlineTest do
   use ExUnit.Case, async: true
 
   test "timeout returns a timeout value at or before the deadline" do
-    Deadline.bind(1000, fn ->
+    Deadline.bind(Deadline.new(1000), fn ->
       assert Deadline.timeout() <= 1000
     end)
   end
 
   test "start timer starts a timer that expires at or before the deadline" do
-    Deadline.bind(1000, fn ->
+    Deadline.bind(Deadline.new(1000), fn ->
       timer = Deadline.start_timer(self(), :hello)
       assert Process.read_timer(timer) <= 1000
     end)
   end
 
   test "nested deadline merged with prior deadline" do
-    Deadline.bind(1000, fn ->
-      Deadline.bind(60000, fn ->
+    Deadline.bind(Deadline.new(1000), fn ->
+      Deadline.bind(Deadline.new(60000), fn ->
         assert Deadline.timeout() <= 1000
       end)
     end)
 
-    Deadline.bind(60000, fn ->
-      Deadline.bind(1000, fn ->
+    Deadline.bind(Deadline.new(60000), fn ->
+      Deadline.bind(Deadline.new(1000), fn ->
         assert Deadline.timeout() <= 1000
       end)
     end)

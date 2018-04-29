@@ -84,10 +84,18 @@ defmodule Stack.Deadline do
   @doc """
   Get the remaining time from the deadline in the current scope.
 
-  If a deadline is not bound in the current scope raises `KeyError`.
+  If a deadline is not bound in the current scope returns `:infinity`.
   """
-  @spec timeout() :: non_neg_integer
-  def timeout(deadline \\ Context.fetch!(Deadline))
+  @spec timeout() :: timeout
+  def timeout() do
+    case Context.fetch(Deadline) do
+      {:ok, deadline} ->
+        timeout(deadline)
+
+      :error ->
+        :infinity
+    end
+  end
 
   @doc """
   Get the remaining time from a deadline.
@@ -105,16 +113,15 @@ defmodule Stack.Deadline do
   @doc """
   Bind a deadline to the scope of an anonymouns function and run the function.
 
-  The first argument is either a deadline struct or a non-infinity timeout
-  (creating a new deadline). If a deadline already exists in the current context
-  the deadlines are merged.
+  The first argument is a deadline struct. If a deadline already exists in the
+  current context the deadlines are merged.
 
   ## Examples
-      Mux.Deadline.bind(1000, fn ->
-        GenServer.call(MyServer, :request, Mux.Deadline.timeout())
+      Stack.Deadline.bind(Stack.Deadline.new(1000), fn ->
+        GenServer.call(MyServer, :request, Stack.Deadline.timeout())
       end)
   """
-  @spec bind(t | non_neg_integer, (() -> result)) :: result when result: var
+  @spec bind(t, (() -> result)) :: result when result: var
   def bind(%Deadline{} = deadline, fun) do
     case Context.fetch(Deadline) do
       {:ok, old} ->
@@ -123,12 +130,6 @@ defmodule Stack.Deadline do
       :error ->
         Context.bind(Deadline, deadline, fun)
     end
-  end
-
-  def bind(timeout, fun) do
-    timeout
-    |> new()
-    |> bind(fun)
   end
 
   @doc """
@@ -151,6 +152,8 @@ defmodule Stack.Deadline do
   @doc false
   @impl Filter
   def call(req, service, timeout) do
-    bind(timeout, fn -> service.(req) end)
+    timeout
+    |> new()
+    |> bind(fn -> service.(req) end)
   end
 end
