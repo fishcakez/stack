@@ -13,16 +13,16 @@ defmodule Stack.TraceTest do
     end)
   end
 
-  test "bind raises if trace already bound" do
+  test "span with new trace raises if trace already bound" do
     Trace.span([], fn ->
       assert_raise RuntimeError, "Stack.Trace already bound in Stack.Context", fn ->
-        Trace.bind(Trace.start([]), fn -> flunk("ran") end)
+        Trace.span(Trace.start([]), fn -> flunk("ran") end)
       end
     end)
   end
 
   test "nested span inherits trace_id and the parent_id is parent's span_id" do
-    Trace.bind(1, 2, 3, [], fn ->
+    Trace.bind(Trace.join(1, 2, 3, []), fn ->
       Trace.span(fn ->
         trace = Context.fetch!(Trace)
         assert %Trace{trace_id: 1, parent_id: 3, span_id: span_id, flags: []} = trace
@@ -56,7 +56,7 @@ defmodule Stack.TraceTest do
       |> Filter.into(Trace.filter())
       |> Filter.into(service1)
 
-    Trace.bind(1, 2, 3, [], fn ->
+    Trace.bind(Trace.join(1, 2, 3, []), fn ->
       assert {2, trace} = Service.init(service2).(1)
       assert %Trace{trace_id: 1, parent_id: 3, span_id: span_id, flags: []} = trace
       assert span_id !== 3

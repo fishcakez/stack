@@ -91,9 +91,26 @@ defmodule Stack.Trace do
   """
   @spec span(t | [flag], (() -> result)) :: result when result: var
   def span(trace_or_flags, fun) do
-    trace_or_flags
-    |> start()
-    |> bind(fun)
+    if Context.has_key?(Trace) do
+      raise "#{inspect(Trace)} already bound in #{inspect(Context)}"
+    else
+      trace_or_flags
+      |> start()
+      |> bind(fun)
+    end
+  end
+
+  @doc """
+  Bind a trace to the scope of an anonymouns function and run the function.
+
+  ## Examples
+      Stack.Trace.bind(Stack.Trace.start([:root]), fn ->
+        GenServer.call(MyServer, {:request, Stack.Context.get()})
+      end)
+  """
+  @spec bind(t, (() -> result)) :: result when result: var
+  def bind(%Trace{} = trace, fun) do
+    Context.bind(Trace, trace, fun)
   end
 
   @doc """
@@ -141,17 +158,4 @@ defmodule Stack.Trace do
   defp uint128(), do: :rand.uniform(@uint128_max + 1) - 1
 
   defp uint64(), do: :rand.uniform(@uint64_max + 1) - 1
-
-  def bind(%Trace{} = trace, fun) do
-    if Context.has_key?(Trace) do
-      raise "#{inspect(Trace)} already bound in #{inspect(Context)}"
-    else
-      Context.bind(Trace, trace, fun)
-    end
-  end
-
-  def bind(trace_id, parent_id, span_id, flags, fun) do
-    trace = join(trace_id, parent_id, span_id, flags)
-    bind(trace, fun)
-  end
 end
