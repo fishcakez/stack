@@ -17,7 +17,7 @@ defmodule Stack.Service do
   The first parameter is request, or input, to the service.
   The second parameter is reply, our output, to the service.
   """
-  @opaque t(_req, _rep) :: %Service{}
+  @opaque t(req, rep) :: %Service{stack: Stack.t(req, rep)}
 
   @callback init(args) :: state when args: term, state: term
   @callback call(_req, state) :: _rep when _req: var, state: term, _rep: var
@@ -77,33 +77,18 @@ defmodule Stack.Service do
   end
 
   @doc """
-  Transform the service input and output.
-  """
-  @spec into(t(req, rep), (req2, (req -> rep) -> rep2)) :: t(req2, rep2)
-        when req: var, rep: var, req2: var, rep2: var
-  def into(%Service{stack: stack} = s, transformer) when is_function(transformer, 2) do
-    %Service{s | stack: [{:into, transformer} | stack]}
-  end
-
-  @doc """
   Create an anonymous function that transforms the input to ouput.
   """
   @spec init(t(req, rep)) :: (req -> rep) when req: var, rep: var
   def init(%Service{stack: stack}) do
-    &eval(stack, &1)
+    &Stack.eval(stack, &1)
   end
 
-  defp eval([], req), do: req
-  defp eval([{:into, transformer} | stack], req), do: transformer.(req, &eval(stack, &1))
-  defp eval([{:map, mapper} | stack], req), do: mapper.(eval(stack, req))
-
-  defp eval([{:into, module, state} | stack], req) do
-    module.call(req, &eval(stack, &1), state)
-  end
-
-  defp eval([{:map, module, state} | stack], req) do
-    stack
-    |> eval(req)
-    |> module.call(state)
+  @doc """
+  Call a service with the input.
+  """
+  @spec call(t(req, rep), req) :: rep when req: var, rep: var
+  def call(%Service{stack: stack}, req) do
+    Stack.eval(stack, req)
   end
 end

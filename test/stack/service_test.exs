@@ -46,13 +46,4 @@ defmodule Stack.ServiceTest do
 
     assert Service.init(service).(1) == 4
   end
-
-  test "into places service inside a new service" do
-    service =
-      Service.new()
-      |> Service.map(fn n -> n + 1 end)
-      |> Service.into(fn n, plus_one -> plus_one.(n * 2) end)
-
-    assert Service.init(service).(1) == 3
-  end
 end

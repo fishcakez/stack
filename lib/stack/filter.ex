@@ -11,7 +11,7 @@ defmodule Stack.Filter do
 
   defstruct stack: []
 
-  @dialyzer {:no_opaque, into: 2}
+  @dialyzer {:no_opaque, into: 2, call: 3}
 
   @typedoc """
   A filter with external and internal request and reply parameters
@@ -21,7 +21,7 @@ defmodule Stack.Filter do
   The third parameter is the request for the wrapped service or filter.
   The fourth parameter is the reply for the wrapped service of filter.
   """
-  @opaque t(_req_in, _rep_out, _req_out, _rep_in) :: %Filter{}
+  @opaque t(req_in, rep_out, _req_out, _rep_in) :: %Filter{stack: Stack.t(req_in, rep_out)}
 
   @callback init(args) :: state when args: term, state: term
   @callback call(_req_in, (_req_out -> _rep_in), state) :: _rep_out
@@ -142,16 +142,25 @@ defmodule Stack.Filter do
         when req_in: var, rep_out: var, req_out: var, rep_in: var
   def init(%Filter{stack: stack}) do
     reverse_stack = Enum.reverse(stack)
-    &eval(reverse_stack, &1, &2)
+    &Stack.eval(reverse_stack, &1, &2)
   end
 
-  defp eval([{:into, transformer} | stack], req, service) do
-    transformer.(req, &eval(stack, &1, service))
+  @doc """
+  Call the filter with input, and fun or wrapped service.
+  """
+  @spec call(t(req_in, rep_out, req_out, rep_in), req_in, (req_out -> rep_in)) :: rep_out
+        when req_in: var, rep_out: var, req_out: var, rep_in: var
+  def call(%Filter{stack: stack}, req, mapper) when is_function(mapper, 1) do
+    stack
+    |> Enum.reverse()
+    |> Stack.eval(req, mapper)
   end
 
-  defp eval([{:into, module, state} | stack], req, service) do
-    module.call(req, &eval(stack, &1, service), state)
+  @spec call(t(req_in, rep_out, req_out, rep_in), req_in, Service.t(req_out, rep_in)) :: rep_out
+        when req_in: var, rep_out: var, req_out: var, rep_in: var
+  def call(%Filter{stack: stack1}, req, %Service{stack: stack2}) do
+    stack1
+    |> Enum.reverse(stack2)
+    |> Stack.eval(req)
   end
-
-  defp eval([], req, service), do: service.(req)
 end
