@@ -13,9 +13,9 @@ base_service =
 
 service =
   Filter.new()
-  |> Filter.into(Trace.filter())
   |> Filter.into(Deadline.filter(1000))
   |> Filter.into(Retry.filter(fn %err{} -> err == ConnectionError end))
+  |> Filter.into(Trace.filter())
   |> Filter.into(base_service)
   |> Service.ensure(&log_request/0)
 ```
