@@ -1,31 +1,22 @@
 defmodule Stack.TraceTest do
   alias Stack.{Context, Trace, Service, Filter}
+  alias Stack.Trace.{SpanContext, Probability}
   use ExUnit.Case, async: true
   use Bitwise
 
   test "span with flags starts a root trace" do
-    Trace.span([:debug], fn ->
-      trace = Context.fetch!(Trace)
-      assert %Trace{parent_id: span_id, span_id: span_id} = trace
-      assert (trace.trace_id &&& 0xFFFF_FFFF_FFFF_FFFF) == span_id
-      assert Enum.member?(trace.flags, :root)
-      assert Enum.member?(trace.flags, :debug)
-    end)
-  end
-
-  test "span with new trace raises if trace already bound" do
-    Trace.span([], fn ->
-      assert_raise RuntimeError, "Stack.Trace already bound in Stack.Context", fn ->
-        Trace.span(Trace.start([]), fn -> flunk("ran") end)
-      end
+    SpanContext.bind(SpanContext.new("test"), fn ->
+      span = Context.fetch!(SpanContext)
+      assert %SpanContext{parent_id: span_id, span_id: span_id} = span
+      assert (span.trace_id &&& 0xFFFF_FFFF_FFFF_FFFF) == span_id
     end)
   end
 
   test "nested span inherits trace_id and the parent_id is parent's span_id" do
-    Trace.bind(Trace.join(1, 2, 3, []), fn ->
-      Trace.span(fn ->
-        trace = Context.fetch!(Trace)
-        assert %Trace{trace_id: 1, parent_id: 3, span_id: span_id, flags: []} = trace
+    SpanContext.bind(SpanContext.new(1, 2, 3, [], "test"), fn ->
+      SpanContext.bind(SpanContext.new("inner"), fn ->
+        span = Context.fetch!(SpanContext)
+        assert %SpanContext{trace_id: 1, parent_id: 3, span_id: span_id, trace_options: []} = span
         assert span_id !== 3
       end)
     end)
@@ -34,31 +25,29 @@ defmodule Stack.TraceTest do
   test "span started with into filter" do
     service1 =
       Service.new()
-      |> Service.map(fn n -> {n + 1, Context.fetch!(Trace)} end)
+      |> Service.map(fn n -> {n + 1, Context.fetch!(SpanContext)} end)
 
     service2 =
       Filter.new()
-      |> Filter.into(Trace.filter([:debug]))
+      |> Filter.into(Trace.filter("test", sampler: Probability.new(1.0)))
       |> Filter.into(service1)
 
-    assert {2, %Trace{flags: flags}} = Service.init(service2).(1)
-    assert Enum.member?(flags, :root)
-    assert Enum.member?(flags, :debug)
+    assert {2, %SpanContext{trace_options: [:sampled]}} = Service.init(service2).(1)
   end
 
   test "nested span inherits trace id with into filter" do
     service1 =
       Service.new()
-      |> Service.map(fn n -> {n + 1, Context.fetch!(Trace)} end)
+      |> Service.map(fn n -> {n + 1, Context.fetch!(SpanContext)} end)
 
     service2 =
       Filter.new()
-      |> Filter.into(Trace.filter())
+      |> Filter.into(Trace.filter("test"))
       |> Filter.into(service1)
 
-    Trace.bind(Trace.join(1, 2, 3, []), fn ->
-      assert {2, trace} = Service.init(service2).(1)
-      assert %Trace{trace_id: 1, parent_id: 3, span_id: span_id, flags: []} = trace
+    SpanContext.bind(SpanContext.new(1, 2, 3, [], "test"), fn ->
+      assert {2, span} = Service.init(service2).(1)
+      assert %SpanContext{trace_id: 1, parent_id: 3, span_id: span_id, trace_options: []} = span
       assert span_id !== 3
     end)
   end
