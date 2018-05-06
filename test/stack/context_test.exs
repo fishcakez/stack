@@ -2,8 +2,6 @@ defmodule Stack.ContextTest do
   alias Stack.{Context, ContextTest}
   use ExUnit.Case, async: true
 
-  doctest Stack.Context
-
   test "bind value sets value" do
     Context.bind(ContextTest, 1, fn ->
       assert Context.get() == %{ContextTest => 1}
@@ -42,21 +40,11 @@ defmodule Stack.ContextTest do
 
   test "unbind module is unbound in nested context" do
     Context.bind(%{ContextTest => 1}, fn ->
-      Context.unbind(ContextTest, fn ->
+      Context.unbind([ContextTest], fn ->
         refute Context.has_key?(ContextTest)
       end)
 
       assert Context.fetch(ContextTest) == {:ok, 1}
-    end)
-  end
-
-  test "unbind modules are unbound in nested context" do
-    Context.bind(%{ContextTest => 1, MyMod => 2}, fn ->
-      Context.unbind([ContextTest], fn ->
-        assert Context.keys() == [MyMod]
-      end)
-
-      assert Context.get() == %{ContextTest => 1, MyMod => 2}
     end)
   end
 

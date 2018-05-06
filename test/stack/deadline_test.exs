@@ -36,7 +36,7 @@ defmodule Stack.DeadlineTest do
 
     service2 =
       Filter.new()
-      |> Filter.into(Deadline.filter(1000))
+      |> Filter.transform(Deadline.filter(1000))
       |> Filter.into(service1)
 
     assert {2, timeout} = Service.init(service2).(1)

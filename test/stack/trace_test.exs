@@ -29,7 +29,7 @@ defmodule Stack.TraceTest do
 
     service2 =
       Filter.new()
-      |> Filter.into(Trace.filter("test", sampler: Probability.new(1.0)))
+      |> Filter.transform(Trace.filter("test", sampler: Probability.new(1.0)))
       |> Filter.into(service1)
 
     assert {2, %SpanContext{trace_options: [:sampled]}} = Service.init(service2).(1)
@@ -42,7 +42,7 @@ defmodule Stack.TraceTest do
 
     service2 =
       Filter.new()
-      |> Filter.into(Trace.filter("test"))
+      |> Filter.transform(Trace.filter("test"))
       |> Filter.into(service1)
 
     SpanContext.bind(SpanContext.new(1, 2, 3, [], "test"), fn ->
