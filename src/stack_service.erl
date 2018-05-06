@@ -4,8 +4,8 @@
 
 -export_type([t/2]).
 
--export([new/0, new/1, new/2, cons/2, append/2, init/1, call/2, to_list/1,
-         from_list/1]).
+-export([new/0, new/1, new/2, cons/2, append/2, init/1, call/2, to_stack/1,
+         from_stack/1]).
 
 %%==============================================================================
 %% API types
@@ -51,10 +51,10 @@ init(#service{stack=Stack}) ->
 call(Req, #service{stack=Stack}) ->
     stack:eval(Req, Stack).
 
--spec to_list(t(Req, Rep)) -> stack:t(Req, Rep).
-to_list(#service{stack=Stack}) ->
+-spec to_stack(t(Req, Rep)) -> stack:t(Req, Rep).
+to_stack(#service{stack=Stack}) ->
     Stack.
 
--spec from_list(Stack) -> t(Req, Rep) when Stack :: stack:t(Req, Rep).
-from_list(Stack) ->
+-spec from_stack(Stack) -> t(Req, Rep) when Stack :: stack:t(Req, Rep).
+from_stack(Stack) ->
     #service{stack=Stack}.

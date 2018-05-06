@@ -5,7 +5,7 @@
 -export_type([t/4]).
 
 -export([new/0, new/1, new/2, cons/2, append/2, reverse/2, init/1, call/3,
-         to_list/1, from_list/1]).
+         to_stack/1, from_stack/1]).
 
 %%==============================================================================
 %% API types
@@ -49,8 +49,8 @@ append(#filter{stack=Stack2}, #filter{stack=Stack1} = Filter) ->
 -spec reverse(t(ReqEx, RepEx, ReqIn, RepIn), stack_service:t(ReqIn, RepIn)) ->
     stack_service:t(ReqEx, RepEx).
 reverse(#filter{stack=Stack}, Service) ->
-    Tail = stack_service:to_list(Service),
-    stack_service:from_list(lists:reverse(Stack, Tail)).
+    Tail = stack_service:to_stack(Service),
+    stack_service:from_stack(lists:reverse(Stack, Tail)).
 
 -spec init(t(ReqEx, RepEx, ReqIn, RepIn)) ->
     fun((ReqEx, fun((ReqIn) -> RepIn)) -> RepEx).
@@ -65,11 +65,11 @@ init(#filter{stack=Stack}) ->
 call(Req, Fun, #filter{stack=Stack}) ->
     stack:eval(Req, lists:reverse(Stack, [{map, Fun}])).
 
--spec to_list(t(ReqEx, RepEx, _ReqIn, _RepIn)) -> stack:t(ReqEx, RepEx).
-to_list(#filter{stack=Stack}) ->
+-spec to_stack(t(ReqEx, RepEx, _ReqIn, _RepIn)) -> stack:t(ReqEx, RepEx).
+to_stack(#filter{stack=Stack}) ->
     Stack.
 
--spec from_list(Stack) -> t(ReqEx, RepEx, _ReqIn, _RepIn)
+-spec from_stack(Stack) -> t(ReqEx, RepEx, _ReqIn, _RepIn)
         when Stack :: stack:t(ReqEx, RepEx).
-from_list(Stack) ->
+from_stack(Stack) ->
     #filter{stack=Stack}.
