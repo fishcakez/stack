@@ -5,7 +5,7 @@ defmodule Stack.RetryTest do
   test "retries up to 3 times" do
     service =
       Retry.filter(fn %exception{} -> exception == RuntimeError end)
-      |> Filter.into(Filter.ensure(fn _ -> send(self(), Retry.tries()) end))
+      |> Filter.defer(fn _ -> self() end, fn pid -> send(pid, Retry.tries()) end)
       |> Filter.into(Service.new(fn _ -> raise "oops" end))
       |> Service.init()
 
@@ -20,7 +20,7 @@ defmodule Stack.RetryTest do
   test "does not retry if exception doesn't match policy" do
     service =
       Retry.filter(fn _ -> false end)
-      |> Filter.into(Filter.ensure(fn _ -> send(self(), Retry.tries()) end))
+      |> Filter.defer(fn _ -> self() end, fn pid -> send(pid, Retry.tries()) end)
       |> Filter.into(Service.new(fn _ -> raise "oops" end))
       |> Service.init()
 
@@ -32,7 +32,7 @@ defmodule Stack.RetryTest do
   test "backoff is longer than the backoff 2 tries ago" do
     service =
       Retry.filter(fn _ -> true end, max_tries: 5, max_backoff: 1000)
-      |> Filter.into(Filter.ensure(fn _ -> send(self(), System.monotonic_time(1000)) end))
+      |> Filter.defer(fn _ -> self() end, fn pid -> send(pid, System.monotonic_time(1000)) end)
       |> Filter.into(Service.new(fn _ -> raise "oops" end))
       |> Service.init()
 
@@ -53,7 +53,7 @@ defmodule Stack.RetryTest do
   test "max backoff is always 1" do
     service =
       Retry.filter(fn _ -> true end, max_backoff: 1)
-      |> Filter.into(Filter.ensure(fn _ -> send(self(), Retry.tries()) end))
+      |> Filter.defer(fn _ -> self() end, fn pid -> send(pid, Retry.tries()) end)
       |> Filter.into(Service.new(fn _ -> raise "oops" end))
       |> Service.init()
 

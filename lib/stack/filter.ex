@@ -42,7 +42,7 @@ defmodule Stack.Filter do
   @spec new((req_in, (req_out -> rep_in) -> rep_out)) :: t(req_in, rep_out, req_out, rep_in)
         when req_in: var, req_out: var, rep_in: var, rep_out: var
   def new(transformer) when is_function(transformer, 2) do
-    %Filter{stack: [{:into, transformer}]}
+    %Filter{stack: [{:transform, transformer}]}
   end
 
   @doc """
@@ -55,34 +55,37 @@ defmodule Stack.Filter do
         when args: term, _req_in: var, _req_out: var, _rep_in: var, _rep_out: var
   def new(module, args) when is_atom(module) do
     state = module.init(args)
-    %Filter{stack: [{:into, module, state}]}
+    %Filter{stack: [{:transform, module, state}]}
   end
 
   @doc """
-  Transform the input and output of the wrapped service, or wrap a service.
+  Transform the input and output of the filter's wrapped serviced.
 
-  If the second argument is a fun or filter, that fun or filter will wrap the service.
+  The second argument is a fun or filter, that fun or filter will wrap the service.
   This can change the request/reply of the wrapped service but not the external request
   and reply as the current filter is wrapping it.
-
-  If the second argument is a service, the filter wraps the service and returns a new
-  service with the input and output matching that of the request and reply of the
-  filter.
   """
-  @spec into(t(req_in, rep_out, req_out, rep_in), (req_out, (req -> rep) -> rep_in)) ::
+  @spec transform(t(req_in, rep_out, req_out, rep_in), (req_out, (req -> rep) -> rep_in)) ::
           t(req_in, rep_out, req, rep)
         when req_in: var, rep_out: var, req_out: var, rep_in: var, req: var, rep: var
-  def into(%Filter{stack: stack} = f, transformer) when is_function(transformer, 2) do
-    %Filter{f | stack: [{:into, transformer} | stack]}
+  def transform(%Filter{stack: stack} = f, transformer) when is_function(transformer, 2) do
+    %Filter{f | stack: [{:transform, transformer} | stack]}
   end
 
-  @spec into(t(req_in, rep_out, req_out, rep_in), t(req_out, rep_in, req, rep)) ::
+  @spec transform(t(req_in, rep_out, req_out, rep_in), t(req_out, rep_in, req, rep)) ::
           t(req_in, rep_out, req, rep)
         when req_in: var, rep_out: var, req_out: var, rep_in: var, req: var, rep: var
-  def into(%Filter{stack: stack1} = f, %Filter{stack: stack2}) do
+  def transform(%Filter{stack: stack1} = f, %Filter{stack: stack2}) do
     %Filter{f | stack: stack2 ++ stack1}
   end
 
+  @doc """
+  Wrap a service, returning a service.
+
+  The second argument is a service, the filter wraps the service and returns a new
+  service with the input and output matching that of the request and reply of the
+  filter.
+  """
   @spec into(t(req_in, rep_out, req_out, rep_in), Service.t(req_out, rep_in)) ::
           Service.t(req_in, rep_out)
         when req_in: var, rep_out: var, req_out: var, rep_in: var
@@ -91,13 +94,64 @@ defmodule Stack.Filter do
   end
 
   @doc """
-  Transform the result returned, or exception raised, by the wrapped service.
+  Defer a fun to always be run after the service, ignoring its result.
+
+  The argument to the deferred function is prepared before the wrapped service with
+  the second argument function. The thrid argument is the deferred function.
   """
-  @spec transform((res -> rep), (req, Exception.t(), Exception.stacktrace() -> rep)) ::
-          t(req, rep, req, res)
-        when req: var, rep: var, res: var
-  def transform(mapper, handler) when is_function(mapper, 1) and is_function(handler, 3) do
-    Filter.new(fn req, service ->
+  @spec defer(t(req_in, rep_out, req_out, rep_in), (req_out -> res), (res -> _ignore)) ::
+          t(req_in, rep_out, req_out, rep_in)
+        when req_in: var, rep_out: var, req_out: var, rep_in: var, res: var, _ignore: var
+  def defer(filter, prepare, deferred) do
+    transform(filter, fn req, fun ->
+      res = prepare.(req)
+
+      try do
+        fun.(req)
+      after
+        deferred.(res)
+      end
+    end)
+  end
+
+  @doc """
+  Map the request before it is inputted to the wrapped service.
+  """
+  @spec map_before(t(req_in, rep_out, req_out, rep_in), (req_out -> res)) ::
+          t(req_in, rep_out, res, rep_in)
+        when req_in: var, rep_out: var, req_out: var, rep_in: var, res: var
+  def map_before(filter, map) do
+    transform(filter, fn req, fun ->
+      req
+      |> map.()
+      |> fun.()
+    end)
+  end
+
+  @doc """
+  Map the request after it is outputted from the wrapped service.
+  """
+  @spec map_after(t(req_in, rep_out, req_out, rep_in), (rep_in -> res)) ::
+          t(req_in, rep_out, req_out, res)
+        when req_in: var, rep_out: var, req_out: var, rep_in: var, res: var
+  def map_after(filter, map) do
+    transform(filter, fn req, fun ->
+      req
+      |> fun.()
+      |> map.()
+    end)
+  end
+
+  @doc """
+  Handle an exception raised by the wrapped service.
+  """
+  @spec handle(
+          t(req_in, rep_out, req_out, rep_in),
+          (req_out, Exception.t(), Exception.stacktrace() -> rep_in)
+        ) :: t(req_in, rep_out, req_out, rep_in)
+        when req_in: var, rep_out: var, req_out: var, rep_in: var
+  def handle(filter, handler) do
+    transform(filter, fn req, service ->
       try do
         service.(req)
       catch
@@ -105,32 +159,6 @@ defmodule Stack.Filter do
           stack = System.stacktrace()
           exception = Exception.normalize(:error, error, stack)
           handler.(req, exception, stack)
-      else
-        res ->
-          mapper.(res)
-      end
-    end)
-  end
-
-  @doc """
-  Handle an exception raised by the wrapped service.
-  """
-  @spec handle((req, Exception.t(), Exception.stacktrace() -> rep)) :: t(req, rep, req, rep)
-        when req: var, rep: var
-  def handle(handler) when is_function(handler, 3) do
-    transform(fn res -> res end, handler)
-  end
-
-  @doc """
-  Create a new filter that ensures a fun is always run after the wrapped service.
-  """
-  @spec ensure((req -> res)) :: t(req, rep, req, rep) when req: var, res: term, rep: var
-  def ensure(ensurer) when is_function(ensurer, 1) do
-    Filter.new(fn req, service ->
-      try do
-        service.(req)
-      after
-        _ = ensurer.(req)
       end
     end)
   end

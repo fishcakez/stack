@@ -7,13 +7,13 @@ defmodule Stack do
   @typedoc false
   @type entry ::
           {:map, (term -> term)}
-          | {:into, (term, (term -> term) -> term)}
-          | {:map | :into, module, term}
+          | {:transform, (term, (term -> term) -> term)}
+          | {:map | :transform, module, term}
 
   @doc false
   @spec eval(t(req, rep), req) :: rep when req: var, rep: var
   def eval([], req), do: req
-  def eval([{:into, transformer} | stack], req), do: transformer.(req, &eval(stack, &1))
+  def eval([{:transform, transformer} | stack], req), do: transformer.(req, &eval(stack, &1))
 
   def eval([{:map, mapper} | stack], req) do
     stack
@@ -21,7 +21,7 @@ defmodule Stack do
     |> mapper.()
   end
 
-  def eval([{:into, module, state} | stack], req) do
+  def eval([{:transform, module, state} | stack], req) do
     module.call(req, &eval(stack, &1), state)
   end
 
@@ -35,7 +35,7 @@ defmodule Stack do
   @spec eval(t(req, rep), req, (term -> term)) :: rep when req: var, rep: var
   def eval([], req, service), do: service.(req)
 
-  def eval([{:into, transformer} | stack], req, service) do
+  def eval([{:transform, transformer} | stack], req, service) do
     transformer.(req, &eval(stack, &1, service))
   end
 
@@ -43,7 +43,7 @@ defmodule Stack do
     eval(stack, mapper.(req), service)
   end
 
-  def eval([{:into, module, state} | stack], req, service) do
+  def eval([{:transform, module, state} | stack], req, service) do
     module.call(req, &eval(stack, &1, service), state)
   end
 

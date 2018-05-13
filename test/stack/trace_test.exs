@@ -22,27 +22,27 @@ defmodule Stack.TraceTest do
     end)
   end
 
-  test "span started with into filter" do
+  test "span started with transform filter" do
     service1 =
       Service.new()
       |> Service.map(fn n -> {n + 1, Context.fetch!(SpanContext)} end)
 
     service2 =
       Filter.new()
-      |> Filter.into(Trace.filter("test", sampler: Probability.new(1.0)))
+      |> Filter.transform(Trace.filter("test", sampler: Probability.new(1.0)))
       |> Filter.into(service1)
 
     assert {2, %SpanContext{trace_options: [:sampled]}} = Service.init(service2).(1)
   end
 
-  test "nested span inherits trace id with into filter" do
+  test "nested span inherits trace id with transform filter" do
     service1 =
       Service.new()
       |> Service.map(fn n -> {n + 1, Context.fetch!(SpanContext)} end)
 
     service2 =
       Filter.new()
-      |> Filter.into(Trace.filter("test"))
+      |> Filter.transform(Trace.filter("test"))
       |> Filter.into(service1)
 
     SpanContext.bind(SpanContext.new(1, 2, 3, [], "test"), fn ->

@@ -40,17 +40,7 @@ defmodule Stack.ContextTest do
     end)
   end
 
-  test "unbind module is unbound in nested context" do
-    Context.bind(%{ContextTest => 1}, fn ->
-      Context.unbind(ContextTest, fn ->
-        refute Context.has_key?(ContextTest)
-      end)
-
-      assert Context.fetch(ContextTest) == {:ok, 1}
-    end)
-  end
-
-  test "unbind modules are unbound in nested context" do
+  test "unbind keys are unbound in nested context" do
     Context.bind(%{ContextTest => 1, MyMod => 2}, fn ->
       Context.unbind([ContextTest], fn ->
         assert Context.keys() == [MyMod]
