@@ -9,8 +9,8 @@ defmodule Stack.FilterTest do
 
     service2 =
       Filter.new()
-      |> Filter.transform(fn n, plus_one -> div(plus_one.(n), 2) end)
-      |> Filter.transform(fn n, plus_one_div_two -> plus_one_div_two.(n * 3) end)
+      |> Filter.into(fn n, plus_one -> div(plus_one.(n), 2) end)
+      |> Filter.into(fn n, plus_one_div_two -> plus_one_div_two.(n * 3) end)
       |> Filter.into(service1)
 
     assert Service.init(service2).(5) == 8
@@ -45,47 +45,35 @@ defmodule Stack.FilterTest do
 
     filter =
       Filter.new()
-      |> Filter.transform(fn n, plus_one -> div(plus_one.(n), 2) end)
-      |> Filter.transform(fn n, plus_one_div_two -> plus_one_div_two.(n * 3) end)
+      |> Filter.into(fn n, plus_one -> div(plus_one.(n), 2) end)
+      |> Filter.into(fn n, plus_one_div_two -> plus_one_div_two.(n * 3) end)
 
     assert Filter.init(filter).(5, Service.init(service)) == 8
   end
 
-  test "map before changes service input" do
+  test "transform rescues exception with stacktrace" do
     service =
-      Filter.new()
-      |> Filter.map_before(fn n -> n + 1 end)
-      |> Filter.into(Service.new(fn n -> n * 2 end))
-
-    assert Service.init(service).(3) == 8
-  end
-
-  test "map after changes service output" do
-    service =
-      Filter.new()
-      |> Filter.map_after(fn n -> n + 1 end)
-      |> Filter.into(Service.new(fn n -> n * 2 end))
-
-    assert Service.init(service).(3) == 7
-  end
-
-  test "handle rescues exception with stacktrace" do
-    service =
-      Filter.new()
-      |> Filter.handle(fn req, kind, err, stack -> {kind, req, err, stack} end)
+      Filter.transform(fn n -> n + 1 end, fn req, err, stack -> {:error, req, err, stack} end)
       |> Filter.into(Service.new(fn _ -> raise RuntimeError end))
 
     assert {:error, 1, %RuntimeError{}, [{FilterTest, _, _, _} | _]} = Service.init(service).(1)
   end
 
-  test "defer always runs" do
+  test "handle rescues exception with stacktrace" do
     service =
-      Filter.new()
-      |> Filter.defer(&{:deferred, &1}, fn msg -> send(self(), msg) end)
-      |> Filter.handle(fn _, kind, err, _ -> {kind, err} end)
+      Filter.handle(fn req, err, stack -> {:error, req, err, stack} end)
+      |> Filter.into(Service.new(fn _ -> raise RuntimeError end))
+
+    assert {:error, 1, %RuntimeError{}, [{FilterTest, _, _, _} | _]} = Service.init(service).(1)
+  end
+
+  test "ensure always runs" do
+    service =
+      Filter.ensure(fn req -> send(self(), {:ensured, req}) end)
+      |> Filter.into(Filter.handle(fn _, err, _ -> {:error, err} end))
       |> Filter.into(Service.new(fn _ -> raise RuntimeError end))
 
     assert {:error, %RuntimeError{}} = Service.init(service).(1)
-    assert_received {:deferred, 1}
+    assert_received {:ensured, 1}
   end
 end
