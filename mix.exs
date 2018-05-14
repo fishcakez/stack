@@ -16,6 +16,6 @@ defmodule Stack.MixProject do
   end
 
   defp deps do
-    []
+    [{:backoff, "~> 1.1.6 or ~> 1.2", optional: true}]
   end
 end
