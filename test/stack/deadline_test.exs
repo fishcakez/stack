@@ -1,5 +1,5 @@
 defmodule Stack.DeadlineTest do
-  alias Stack.{Deadline, Service, Filter}
+  alias Stack.{Deadline, DeadlineFilter, Service, Filter}
   use ExUnit.Case, async: true
 
   test "timeout returns a timeout value at or before the deadline" do
@@ -36,7 +36,7 @@ defmodule Stack.DeadlineTest do
 
     service2 =
       Filter.new()
-      |> Filter.transform(Deadline.filter(1000))
+      |> Filter.transform(DeadlineFilter.new(1000))
       |> Filter.into(service1)
 
     assert {2, timeout} = Service.init(service2).(1)

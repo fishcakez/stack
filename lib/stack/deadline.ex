@@ -1,12 +1,11 @@
 defmodule Stack.Deadline do
   @moduledoc """
-  Deadline handling with Stack.Filter via Stack.Context.
+  Deadline handling.
 
   This modules provides deadlines over (multiple) Stack.Contexts. The nearest deadline in
   the current scope takes priority when using a context.
   """
-  alias Stack.{Context, Deadline, Filter}
-  @behaviour Filter
+  alias Stack.{Context, Deadline}
 
   @time_unit :nanosecond
 
@@ -130,30 +129,5 @@ defmodule Stack.Deadline do
       :error ->
         Context.bind(Deadline, deadline, fun)
     end
-  end
-
-  @doc """
-  Create a filter that binds a deadline inside the scope of the filter.
-
-  ## Examples
-
-      Stack.Deadline.filter(100)
-      |> Filter.into(fn -> GenServer.call(server, :request, Stack.Deadline.timeout()) end)
-  """
-  @spec filter(non_neg_integer) :: Filter.t(req, rep, req, rep) when req: var, rep: var
-  def filter(timeout) when is_integer(timeout) and timeout >= 0 do
-    Filter.new(Deadline, timeout)
-  end
-
-  @doc false
-  @impl Filter
-  def init(timeout), do: timeout
-
-  @doc false
-  @impl Filter
-  def call(req, service, timeout) do
-    timeout
-    |> new()
-    |> bind(fn -> service.(req) end)
   end
 end
