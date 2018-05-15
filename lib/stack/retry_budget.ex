@@ -101,16 +101,16 @@ defmodule Stack.RetryBudget do
 
   @impl GenServer
   def handle_info(update, tid) do
-    %Update{tid: ^tid, allow: allow, min: min, interval: interval, delay: delay, count_ema: ema} =
+    %Update{tid: ^tid, allow: allow, min: min, interval: interval, delay: delay, count_ema: count_ema} =
       update
 
     get_reset = [{requests(:count) + 1, 0}, {requests(:count) + 1, 0, 0, 0}]
     [count | _] = :ets.update_counter(tid, :requests, get_reset)
     # EMA is weighted based on the time delay since last update, larger delay means more weight
-    ema = div(delay * count + (2 * interval - delay) * ema, 4 * interval)
+    count_ema = ema(delay, count, interval, count_ema)
 
-    delay2 = next(%Update{update | count_ema: ema})
-    tokens = div(ema * allow * delay2, 100 * interval)
+    delay2 = next(%Update{update | count_ema: count_ema})
+    tokens = div(count_ema * allow * delay2, 100 * interval)
     retries = new_retries(tokens, min)
     true = :ets.insert(tid, retries)
     {:noreply, tid}
@@ -152,5 +152,9 @@ defmodule Stack.RetryBudget do
     rest = div(first, 3)
     second = tokens - first - rest
     retries(first: first, second: second, rest: min + rest)
+  end
+
+  defp ema(weight1, val1, weight2, val2) do
+    div(weight1 * val1 + weight2 * val2, 2 * (weight1 + weight2))
   end
 end

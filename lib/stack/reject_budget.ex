@@ -121,8 +121,8 @@ defmodule Stack.RejectBudget do
 
     [accept, reject | _] = :ets.update_counter(tid, :requests, get_reset)
     # EMA is weighted based on the time delay since last update, larger delay means more weight
-    accept_ema = div(delay * accept + (2 * interval - delay) * accept_ema, 4 * interval)
-    reject_ema = div(delay * reject + (2 * interval - delay) * reject_ema, 4 * interval)
+    accept_ema = ema(delay, accept, interval, accept_ema)
+    reject_ema = ema(delay, reject, interval, reject_ema)
 
     drop_scaled = drop_scaled(accept_ema, reject_ema, allow)
     true = :ets.insert(tid, requests(min: min, drop_scaled: drop_scaled))
@@ -183,6 +183,10 @@ defmodule Stack.RejectBudget do
       _ ->
         {:go, tid}
     end
+  end
+
+  defp ema(weight1, val1, weight2, val2) do
+    div(weight1 * val1 + weight2 * val2, 2 * (weight1 + weight2))
   end
 
   defp drop_scaled(_, _, 100), do: 0
