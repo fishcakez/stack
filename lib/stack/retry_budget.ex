@@ -2,7 +2,7 @@ defmodule Stack.RetryBudget do
   @moduledoc """
   Budget that limits the number of retries based on the number of requests.
 
-  The retry budget allows at minimum number of retries per second. It also allows
+  The retry budget allows a minimum number of retries per second. It also allows
   retries up to a percentage of requests.
   """
 
@@ -101,8 +101,14 @@ defmodule Stack.RetryBudget do
 
   @impl GenServer
   def handle_info(update, tid) do
-    %Update{tid: ^tid, allow: allow, min: min, interval: interval, delay: delay, count_ema: count_ema} =
-      update
+    %Update{
+      tid: ^tid,
+      allow: allow,
+      min: min,
+      interval: interval,
+      delay: delay,
+      count_ema: count_ema
+    } = update
 
     get_reset = [{requests(:count) + 1, 0}, {requests(:count) + 1, 0, 0, 0}]
     [count | _] = :ets.update_counter(tid, :requests, get_reset)

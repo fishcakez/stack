@@ -2,7 +2,7 @@ defmodule Stack.RejectBudget do
   @moduledoc """
   Budget that limits the number of requests based on number of rejections.
 
-  The reject budget allows at minimum number of requests per second. It also allows
+  The reject budget allows a minimum number of requests per second. It also allows
   requests up to a percentage of rejections, then randomly drops requests to try to
   stabilize the number of accepted requests.
   """
