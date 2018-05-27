@@ -34,11 +34,12 @@ defmodule Stack.ConcurrencyTest do
   @tag valve: %{max: 1}
   test "filter blocks awaiting lock at threshold", context do
     service =
-      ConcurrencyFilter.new(context[:regulator], [block_threshold: :sheddable_plus])
+      ConcurrencyFilter.new(context[:regulator], block_threshold: :sheddable_plus)
       |> Filter.into(Service.new(fn _ -> :ok end))
       |> Service.init()
 
     parent = self()
+
     spawn_link(fn ->
       {:go, ref, pid, _, _} = :sregulator.ask(context[:regulator])
       {:await, tag, _} = :sregulator.dynamic_ask(pid)
@@ -59,7 +60,7 @@ defmodule Stack.ConcurrencyTest do
   @tag valve: %{max: 0}
   test "filter does not block awaiting lock below threshold", context do
     service =
-      ConcurrencyFilter.new(context[:regulator], [block_threshold: :critical_plus])
+      ConcurrencyFilter.new(context[:regulator], block_threshold: :critical_plus)
       |> Filter.into(Service.new(fn _ -> :ok end))
       |> Service.init()
 
@@ -78,7 +79,6 @@ defmodule Stack.ConcurrencyTest do
     assert service.(2) == :ok
   end
 
-
   @tag queue: %{max: 0}
   @tag valve: %{max: 1}
   test "filter release lock after service raises", context do
@@ -90,5 +90,4 @@ defmodule Stack.ConcurrencyTest do
     assert_raise RuntimeError, "oops", fn -> service.(1) end
     assert_raise RuntimeError, "oops", fn -> service.(2) end
   end
-
 end

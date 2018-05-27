@@ -5,7 +5,18 @@ defmodule Stack.FailureFilter do
   This module provides retry, backoff and rejection handling via a Stack.Filter that takes into account
   deadlines and the criticality of a request.
   """
-  alias Stack.{Failure, FailureFilter, RetryBudget, RejectBudget, Context, Criticality, Deadline, Filter, Drop}
+  alias Stack.{
+    Failure,
+    FailureFilter,
+    RetryBudget,
+    RejectBudget,
+    Context,
+    Criticality,
+    Deadline,
+    Filter,
+    Drop
+  }
+
   use Bitwise
   @behaviour Filter
 

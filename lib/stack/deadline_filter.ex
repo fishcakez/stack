@@ -6,7 +6,7 @@ defmodule Stack.DeadlineFilter do
   """
   alias Stack.{Filter, Deadline, DeadlineFilter}
   @behaviour Filter
-   
+
   @doc """
   Create a filter that binds a deadline inside the scope of the filter.
 

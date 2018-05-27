@@ -6,7 +6,7 @@ defmodule Stack.FailureTest do
     service =
       FailureFilter.new(fn :oops -> :retry end)
       |> Filter.defer(fn _ -> self() end, fn pid -> send(pid, FailureFilter.tries()) end)
-      |> Filter.into(Service.new(fn _ ->  :oops end))
+      |> Filter.into(Service.new(fn _ -> :oops end))
       |> Service.init()
 
     assert_raise Failure, fn -> service.(1) end
