@@ -72,7 +72,7 @@ defmodule Stack.Context do
         |> put_defer(fun, deferred, old_ctx)
 
       _ ->
-        put(ctx, fun, deferred)
+        put_defer(ctx, fun, deferred)
     end
   end
 
