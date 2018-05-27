@@ -6,17 +6,17 @@ defmodule Stack.CriticalityFilter do
   """
   alias Stack.{Filter, Criticality, CriticalityFilter}
   @behaviour Filter
-   
+
   @doc """
   Create a filter that binds a criticality level inside the scope of the filter.
 
   ## Examples
 
-      Stack.CriticalityFilter.new(:scheddable_plus)
+      Stack.CriticalityFilter.new(:sheddable_plus)
       |> Filter.into(fn -> GenServer.call(server, {:request, Stack.Criticality.get()}) end)
   """
-  @spec new(Criticality.t) :: Filter.t(req, rep, req, rep) when req: var, rep: var
-  def new(level) when level in [:critical_plus, :critical, :scheddable_plus, :sheddable] do
+  @spec new(Criticality.t()) :: Filter.t(req, rep, req, rep) when req: var, rep: var
+  def new(level) when level in [:critical_plus, :critical, :sheddable_plus, :sheddable] do
     Filter.new(CriticalityFilter, level)
   end
 
