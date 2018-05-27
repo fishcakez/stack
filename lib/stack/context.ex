@@ -6,8 +6,6 @@ defmodule Stack.Context do
   the values exists in the scope of the anonymous function for the calling process.
   """
 
-  alias Stack.Context
-
   @typedoc """
   Context map.
   """
