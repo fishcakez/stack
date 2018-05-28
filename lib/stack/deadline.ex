@@ -7,8 +7,6 @@ defmodule Stack.Deadline do
   """
   alias Stack.{Context, Deadline}
 
-  @time_unit :nanosecond
-
   @enforce_keys [:start, :finish, :time_offset]
   defstruct [:start, :finish, :time_offset]
 
@@ -28,9 +26,9 @@ defmodule Stack.Deadline do
   """
   @spec new(non_neg_integer, System.time_unit()) :: t
   def new(timeout, time_unit \\ :millisecond) do
-    start = System.monotonic_time(@time_unit)
-    finish = start + System.convert_time_unit(timeout, time_unit, @time_unit)
-    time_offset = System.time_offset(@time_unit)
+    start = System.monotonic_time()
+    finish = start + System.convert_time_unit(timeout, time_unit, :native)
+    time_offset = System.time_offset()
     %Deadline{start: start, finish: finish, time_offset: time_offset}
   end
 
@@ -76,7 +74,7 @@ defmodule Stack.Deadline do
   """
   @spec start_timer(t, pid | atom, any) :: reference()
   def start_timer(%Deadline{finish: finish}, dest, msg) do
-    abs = System.convert_time_unit(finish, @time_unit, :millisecond)
+    abs = System.convert_time_unit(finish, :native, :millisecond)
     :erlang.start_timer(abs, dest, msg, abs: true)
   end
 
@@ -101,11 +99,11 @@ defmodule Stack.Deadline do
   """
   @spec timeout(t) :: non_neg_integer
   def timeout(%Deadline{finish: finish}) do
-    now = System.monotonic_time(@time_unit)
+    now = System.monotonic_time()
 
     finish
     |> Kernel.-(now)
-    |> System.convert_time_unit(@time_unit, :millisecond)
+    |> System.convert_time_unit(:native, :millisecond)
     |> max(0)
   end
 

@@ -12,10 +12,14 @@ defmodule Stack.MixProject do
   end
 
   def application do
-    []
+    [extra_applications: [:logger], mod: {Stack.Application, []}, env: [span_cache_size: 1_000]]
   end
 
   defp deps do
-    [{:backoff, "~> 1.1.6 or ~> 1.2", optional: true}, {:sbroker, "~> 1.0", optional: true}]
+    [
+      {:gen_stage, "~> 0.13"},
+      {:backoff, "~> 1.1.6 or ~> 1.2", optional: true},
+      {:sbroker, "~> 1.0", optional: true}
+    ]
   end
 end

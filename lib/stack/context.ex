@@ -89,7 +89,7 @@ defmodule Stack.Context do
       %{} = ctx ->
         ctx
         |> Map.put(key, value)
-        |> put_defer(fun, ctx, deferred)
+        |> put_defer(fun, deferred, ctx)
 
       _ ->
         put_defer(%{key => value}, fun, deferred)

@@ -1,12 +1,13 @@
 defmodule Stack.Trace.SpanContext do
-  alias Stack.{Trace, Context, Filter}
-  alias Stack.Trace.{SpanContext, Sampler, Probability}
+  @moduledoc """
+  Trace span context.
+  """
+  alias Stack.Trace
+  alias Trace.{SpanContext, SpanData, Sampler, Probability}
   use Bitwise
-  @behaviour Filter
 
   @uint128_max (1 <<< 128) - 1
   @uint64_max (1 <<< 64) - 1
-  @time_unit 1_000_000_000
 
   @enforce_keys [:trace_id, :parent_id, :span_id]
   defstruct [:trace_id, :parent_id, :span_id, trace_options: [], data: nil]
@@ -16,7 +17,7 @@ defmodule Stack.Trace.SpanContext do
           parent_id: Trace.span_id(),
           span_id: Trace.span_id(),
           trace_options: [Trace.trace_option()],
-          data: nil | :ets.tid()
+          data: nil | SpanData.t()
         }
 
   @spec new(name) :: t() when name: String.t()
@@ -24,15 +25,9 @@ defmodule Stack.Trace.SpanContext do
   def new(name, span_opts \\ [])
 
   def new(name, span_opts) do
-    case Context.fetch(SpanContext) do
-      {:ok, parent} ->
-        new(parent, name, span_opts)
-
-      :error ->
-        trace_id = uint128()
-        span_id = trace_id &&& 0xFFFF_FFFF_FFFF_FFFF
-        new(trace_id, span_id, span_id, root_opts(span_opts), name, span_opts)
-    end
+    trace_id = uint128()
+    span_id = trace_id &&& 0xFFFF_FFFF_FFFF_FFFF
+    new(trace_id, span_id, span_id, root_opts(span_opts), name, span_opts)
   end
 
   @spec new(t(), name, [Trace.span_option()]) :: t() when name: String.t()
@@ -56,57 +51,32 @@ defmodule Stack.Trace.SpanContext do
       parent_id: parent_id,
       span_id: span_id,
       trace_options: trace_opts,
-      data: new_data(name, trace_opts, span_opts)
+      data: new_data(name, trace_id, parent_id, span_id, trace_opts, span_opts)
     }
-  end
-
-  @spec bind(t(), (() -> result)) :: result when result: var
-  def bind(%SpanContext{} = span, fun) do
-    Context.bind(SpanContext, span, fun)
-  end
-
-  @spec recording?() :: boolean
-  def recording?() do
-    case Context.fetch(SpanContext) do
-      {:ok, %SpanContext{data: data}} ->
-        data != nil
-
-      :error ->
-        false
-    end
   end
 
   @spec recording?(t()) :: boolean
   def recording?(%SpanContext{data: data}), do: data != nil
 
-  @spec delete(t()) :: :ok
-  def delete(%SpanContext{data: nil}), do: :ok
+  @spec put_attribute(t(), key, value) :: boolean when key: term, value: term
+  def put_attribute(%SpanContext{data: nil}, _, _), do: false
 
-  def delete(%SpanContext{data: data}) do
-    :ets.delete(data)
-    :ok
+  def put_attribute(%SpanContext{data: data}, key, value) do
+    SpanData.put(data, key, value)
   end
 
-  @doc false
-  @impl Filter
-  def init(arg), do: arg
+  @spec put_attributes(t(), [{key, value}]) :: boolean when key: term, value: term
+  def put_attributes(%SpanContext{data: nil}, _), do: false
 
-  @doc false
-  @impl Filter
-  def call(req, service, {name, opts}) do
-    case new(name, opts) do
-      %SpanContext{data: nil} = span ->
-        bind(span, fn -> service.(req) end)
+  def put_attributes(%SpanContext{data: data}, attributes) do
+    SpanData.put(data, attributes)
+  end
 
-      %SpanContext{data: data} = span ->
-        bind(span, fn ->
-          try do
-            service.(req)
-          after
-            :ets.delete(data)
-          end
-        end)
-    end
+  @spec delete(t()) :: boolean
+  def delete(%SpanContext{data: nil}), do: false
+
+  def delete(%SpanContext{data: data}) do
+    SpanData.delete(data)
   end
 
   ## Helpers
@@ -123,16 +93,20 @@ defmodule Stack.Trace.SpanContext do
     end
   end
 
-  defp new_data(name, trace_opts, span_opts) do
+  defp new_data(name, trace_id, parent_id, span_id, trace_opts, span_opts) do
     if Keyword.get(trace_opts, :sampled, false) do
-      data = :ets.new(SpanContext, [])
-      span_kind = Keyword.get(span_opts, :span_kind, :unspecified)
+      span_kind = Keyword.get(span_opts, :span_kind)
+      data = SpanData.new(span_opts)
 
-      :ets.insert(data, [
-        {:start_time, System.monotonic_time(@time_unit)},
-        {:name, name},
-        {:span_kind, span_kind}
-      ])
+      SpanData.put(
+        data,
+        name: name,
+        trace_id: trace_id,
+        parent_id: parent_id,
+        span_id: span_id,
+        start_time: System.monotonic_time(),
+        span_kind: span_kind
+      )
 
       data
     end
