@@ -94,7 +94,7 @@ defmodule Stack.Trace.SpanContext do
   end
 
   defp new_data(name, trace_id, parent_id, span_id, trace_opts, span_opts) do
-    if Keyword.get(trace_opts, :sampled, false) do
+    if Enum.member?(trace_opts, :sampled) do
       span_kind = Keyword.get(span_opts, :span_kind)
       data = SpanData.new(span_opts)
 
