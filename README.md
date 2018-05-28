@@ -9,7 +9,6 @@ base_service =
   |> Service.map(&encode_body/1)
   |> Service.map(&Http.Client.call(:POST, &1))
   |> Service.map(&decode_request/1)
-  |> Service.handle(&handle_400_exceptions/1)
 
 service =
   Filter.new()
@@ -18,5 +17,4 @@ service =
   |> Filter.transform(FailureFilter.new(fn %ConnectionError{} -> :retry ; _ -> :cont end))
   |> Filter.transform(TraceFilter.new("http_api_call"))
   |> Filter.into(base_service)
-  |> Service.ensure(&log_request/0)
 ```
