@@ -17,5 +17,7 @@ service =
   |> Filter.transform(FailureFilter.new(fn %ConnectionError{} -> :retry ; _ -> :cont end))
   |> Filter.transform(ConcurrencyFilter.new(RateLimiter))
   |> Filter.transform(TraceFilter.new("http_api_call"))
+  |> Filter.defer(&new_log_entry/1, &log/1)
+  |> Filter.handle(&handle_400_exceptions/2)
   |> Filter.into(base_service)
 ```
