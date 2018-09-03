@@ -169,8 +169,11 @@ defmodule Stack.Filter do
   @spec init(t(req_in, rep_out, req_out, rep_in)) :: (req_in, (req_out -> rep_in) -> rep_out)
         when req_in: var, rep_out: var, req_out: var, rep_in: var
   def init(%Filter{stack: stack}) do
-    reverse_stack = Enum.reverse(stack)
-    &Stack.eval(reverse_stack, &1, &2)
+    fn req, mapper when is_function(mapper, 1) ->
+      stack
+      |> Enum.reverse([{:map, mapper}])
+      |> Stack.eval(req)
+    end
   end
 
   @doc """
@@ -180,8 +183,8 @@ defmodule Stack.Filter do
         when req_in: var, rep_out: var, req_out: var, rep_in: var
   def call(%Filter{stack: stack}, req, mapper) when is_function(mapper, 1) do
     stack
-    |> Enum.reverse()
-    |> Stack.eval(req, mapper)
+    |> Enum.reverse([{:map, mapper}])
+    |> Stack.eval(req)
   end
 
   @spec call(t(req_in, rep_out, req_out, rep_in), req_in, Service.t(req_out, rep_in)) :: rep_out
