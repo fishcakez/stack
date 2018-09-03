@@ -1,6 +1,6 @@
 defmodule Stack.ServiceTest do
   alias Stack.Service
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   test "map transforms values" do
     service =
