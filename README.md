@@ -1,7 +1,7 @@
 # Stack
 
-Stack is a protocol agnostic functional framework for building fault tolerant and observable service
-communication using composable data structures with parameterized typing. There is built in support for
+Stack is a protocol agnostic, functional framework for building fault tolerant, observable clients and
+servers using composable data structures with parameterized typing. There is built in support for
 request deadlines and criticiality, distributed tracing, concurrency/rate limiting and failure handling
 (retry budgets, rejection budgets and backoff). The features combine naturally together, for example
 a retry backoff won't occur if the backoff would go beyond a deadline. Pipelines are composed at runtime
