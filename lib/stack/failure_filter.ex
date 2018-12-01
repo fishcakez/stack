@@ -118,7 +118,7 @@ defmodule Stack.FailureFilter do
 
   ## Options
       * `:max_tries` - maximum number of tries (including first try) (default: `3`)
-      * `:backoff` - backoff data structure, see `:backoff`
+      * `:backoff` - backoff data structure, see `:backoff`, no backoff if `nil` (default: `nil`)
       * `:backoff_threshold` - minimum timeout remaining in deadline to allow backoff (default: `1`)
       * `:retry_budget` - retry budget to limit retries, see `Stack.RetryBudget` (default: `nil`)
       * `:retry_threshold` - minimium criticality level to retry a failure (default: `:critical`)
