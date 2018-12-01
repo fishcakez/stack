@@ -113,7 +113,7 @@ defmodule Stack.FailureFilter do
 
   ## Examples
 
-   Stack.FailureFilter.new(fn %WriteError{} -> :retry ; _ -> :cont end, [max_tries: 2])
+   Stack.FailureFilter.new(fn %WriteError{} -> :retry ; %{__exception__: true} -> :error ; _ -> :cont end, [max_tries: 2])
    |> Filter.into(fn -> Database.fetch!(key) end)
 
   ## Options
@@ -121,7 +121,7 @@ defmodule Stack.FailureFilter do
       * `:backoff` - backoff data structure, see `:backoff`
       * `:backoff_threshold` - minimum timeout remaining in deadline to allow backoff (default: `1`)
       * `:retry_budget` - retry budget to limit retries, see `Stack.RetryBudget` (default: `nil`)
-      * `:retry_treshold` - minimium criticality level to retry a failure (default: `:critical`)
+      * `:retry_threshold` - minimium criticality level to retry a failure (default: `:critical`)
       * `:reject_budget` - reject budget to pre-emptively reject, see `Stack.RejectBudget` (default: `nil`)
       * `:force_threshold` - minimum criticality level to force a budget not to drop (default: `:critical`)
 
